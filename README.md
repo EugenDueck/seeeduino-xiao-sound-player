@@ -1,6 +1,6 @@
 # Playing sound on the Seeeduino XIAO
 
-This simple example plays 8 bit / 16k / mono sound on a Seeeduino XIAO.
+This simple example plays 8 bit / 16k / mono sound sample in a loop on a Seeeduino XIAO.
 
 The Seeeduino XIAO has
 - one 10-bit DAC on pin 0 we will use to output sound to a speaker
