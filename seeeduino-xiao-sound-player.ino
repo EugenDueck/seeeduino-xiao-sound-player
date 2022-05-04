@@ -1,7 +1,8 @@
 #include "samples.h"
+#include <IRremote.hpp>
 
 const int pin_ir_recv = 2;
-//const int pin_ir_send = 3;
+const int pin_ir_send = 3;
 
 const int dac_bits = 8;
 const int rate = 16000;
@@ -20,7 +21,9 @@ unsigned long last_micros;
 int remaining_plays = 0;
 void setup() {
   analogWriteResolution(dac_bits);
-  pinMode(pin_ir_recv, INPUT);
+  IrReceiver.begin(pin_ir_recv, false);
+  IrSender.begin(pin_ir_send);
+//  pinMode(pin_ir_recv, INPUT);
 //  pinMode(pin_ir_send, OUTPUT);
 //  digitalWrite(pin_ir_send, HIGH);
   last_micros = micros();
@@ -37,45 +40,59 @@ void sleep() {
 
 bool is_receiving_ir()
 {
-  return digitalRead(pin_ir_recv) == LOW;
-}
-
-void loop() {
-  if (remaining_plays == 0) {
-      int value = digitalRead(pin_ir_recv);
-      if (value == 0)
-        remaining_plays = play_count;
-      else
-        delay(1);
-  }
-  else
-  {
-    remaining_plays--;
-
-    for (int i = 0; i < sample_count; i++)
-    {
-      analogWrite(dac_out, samples[i]);
-      sleep();
-    }
-  }
+  return IrReceiver.decode();
 }
 
 //void loop() {
-//  if (is_receiving_ir())
+//  if (remaining_plays == 0) {
+//      int value = digitalRead(pin_ir_recv);
+//      if (value == 0)
+//        remaining_plays = play_count;
+//      else
+//        delay(1);
+//  }
+//  else
 //  {
-//    int last_ir_receival = 0;
+//    remaining_plays--;
+//
 //    for (int i = 0; i < sample_count; i++)
 //    {
-//      if (is_receiving_ir())
-//        last_ir_receival = i;
-//      else if (i - last_ir_receival > rate)
-//        break;
 //      analogWrite(dac_out, samples[i]);
 //      sleep();
 //    }
 //  }
-//  else
-//  {
-//    delay(1);
-//  }
 //}
+
+uint16_t sAddress = 0x0102;
+uint8_t sCommand = 0x34;
+uint8_t sRepeats = 0;
+
+void loop() {
+  IrSender.sendNEC(sAddress, sCommand, sRepeats);
+  if (is_receiving_ir())
+  {
+    IrReceiver.resume();
+    Serial.println(IrReceiver.decodedIRData.decodedRawData, HEX);
+    int last_ir_receival = 0;
+    for (int i = 0; i < sample_count; i++)
+    {
+      int mod = i % rate;
+      if (mod == 0)
+      {
+        IrSender.sendNEC(sAddress, sCommand, sRepeats);
+      } else if (mod == (rate - 1))
+      {
+        if (is_receiving_ir())
+          IrReceiver.resume();
+        else
+          break;
+      }
+      analogWrite(dac_out, samples[i]);
+      sleep();
+    }
+  }
+  else
+  {
+    delay(1);
+  }
+}
