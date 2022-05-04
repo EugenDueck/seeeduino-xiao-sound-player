@@ -1,4 +1,4 @@
-# Playing sound on the Seeeduino XIAO
+# Playi sound on the Seeeduino XIAO
 
 This simple example plays 8 bit / 16k / mono sound sample in a loop on a Seeeduino XIAO.
 
@@ -11,4 +11,13 @@ I have attached a [Grove speaker](https://wiki.seeedstudio.com/Grove-Speaker/) t
 - black cable to GND
 - yellow cable to DAC
 
-I converted a recording I made using audacity and sox to a 8 bit 16k mono .dat file and used awk to convert the dat file to the cajon_guitar....h file.
+# Convert WAV file to 8 bit, 16k, mono sample.h file
+```
+sox sound.wav -c1 -r16000 -tdat - \
+| tail -n+3 \
+| awk '
+  BEGIN { printf "const PROGMEM byte samples[] = {\n" }
+  { printf "  %.0f,\n", ($2+1)*128}
+  END { printf "};\n"}' \
+> samples.h
+```
