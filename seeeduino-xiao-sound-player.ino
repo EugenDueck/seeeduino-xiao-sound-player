@@ -1,19 +1,17 @@
 #include "samples.h"
-#include <IRremote.hpp>
 
-const int pin_ir_recv = 2;
-const int pin_ir_send = 3;
+const int pin_pir_motion_sensor = 1;
+const int pin_dac = DAC0;
 
 const int dac_bits = 8;
 const int rate = 16000;
-const int dac_out = DAC0;
 
 const int play_count = 1;
 
 const int sample_count = sizeof(samples) / sizeof(samples[0]);
 // micros_compensation is used to compensate for execution time of micros() etc.
 // the value was determined by comparing the original pitch vs. the output pitch
-const int micros_compensation = 4;
+const int micros_compensation = 8;
 // integer division is lossy, so let's multiply by 2 before dividing, (complicating the formula a bit)
 const int sleep_micros_times_2 = (2 * 1000000 / rate) - (2 * micros_compensation);
 
@@ -21,11 +19,7 @@ unsigned long last_micros;
 int remaining_plays = 0;
 void setup() {
   analogWriteResolution(dac_bits);
-  IrReceiver.begin(pin_ir_recv, false);
-  IrSender.begin(pin_ir_send);
-//  pinMode(pin_ir_recv, INPUT);
-//  pinMode(pin_ir_send, OUTPUT);
-//  digitalWrite(pin_ir_send, HIGH);
+  pinMode(pin_pir_motion_sensor, INPUT);
   last_micros = micros();
 }
 
@@ -38,61 +32,25 @@ void sleep() {
   last_micros = now_micros;
 }
 
-bool is_receiving_ir()
-{
-  return IrReceiver.decode();
-}
-
-//void loop() {
-//  if (remaining_plays == 0) {
-//      int value = digitalRead(pin_ir_recv);
-//      if (value == 0)
-//        remaining_plays = play_count;
-//      else
-//        delay(1);
-//  }
-//  else
-//  {
-//    remaining_plays--;
-//
-//    for (int i = 0; i < sample_count; i++)
-//    {
-//      analogWrite(dac_out, samples[i]);
-//      sleep();
-//    }
-//  }
-//}
-
-uint16_t sAddress = 0x0102;
-uint8_t sCommand = 0x34;
-uint8_t sRepeats = 0;
-
 void loop() {
-  IrSender.sendNEC(sAddress, sCommand, sRepeats);
-  if (is_receiving_ir())
-  {
-    IrReceiver.resume();
-    Serial.println(IrReceiver.decodedIRData.decodedRawData, HEX);
-    int last_ir_receival = 0;
-    for (int i = 0; i < sample_count; i++)
-    {
-      int mod = i % rate;
-      if (mod == 0)
-      {
-        IrSender.sendNEC(sAddress, sCommand, sRepeats);
-      } else if (mod == (rate - 1))
-      {
-        if (is_receiving_ir())
-          IrReceiver.resume();
-        else
-          break;
-      }
-      analogWrite(dac_out, samples[i]);
-      sleep();
-    }
+  if (remaining_plays == 0) {
+    int moving = digitalRead(pin_pir_motion_sensor);
+//    Serial.println(moving);
+    if (moving)
+      remaining_plays = play_count;
+    else
+      delay(1000);
   }
   else
   {
-    delay(1);
+    remaining_plays--;
+
+    for (int i = 0; i < sample_count; i++)
+    {
+      analogWrite(pin_dac, samples[i]);
+      sleep();
+    }
+    if (remaining_plays == 0)
+      delay(5000);
   }
 }
